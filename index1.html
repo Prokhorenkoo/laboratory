@@ -1,0 +1,595 @@
+```html
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Система управления лабораторией</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            min-height: 100vh;
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+
+        .lab-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .module {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .module::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .module.active::before {
+            opacity: 1;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf, #00d4ff);
+        }
+
+        .module:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .module.locked {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .module.locked:hover {
+            transform: none;
+        }
+
+        .module-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .module-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            margin-right: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .module.active .module-icon {
+            background: linear-gradient(135deg, #00d4ff, #7b2cbf);
+            box-shadow: 0 5px 20px rgba(0, 212, 255, 0.3);
+        }
+
+        .module-title {
+            font-size: 1.3em;
+            font-weight: 600;
+        }
+
+        .module-status {
+            font-size: 0.9em;
+            color: rgba(255, 255, 255, 0.6);
+            margin-top: 5px;
+        }
+
+        .module.active .module-status {
+            color: #00d4ff;
+        }
+
+        .control-btn {
+            width: 100%;
+            padding: 15px 25px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .control-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-off {
+            background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
+            color: #666;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-on {
+            background: linear-gradient(135deg, #00d4ff, #7b2cbf);
+            color: #fff;
+            box-shadow: 0 5px 20px rgba(0, 212, 255, 0.4);
+        }
+
+        .btn-on:hover:not(:disabled) {
+            transform: scale(1.02);
+            box-shadow: 0 8px 25px rgba(0, 212, 255, 0.5);
+        }
+
+        .btn-off:hover:not(:disabled) {
+            background: linear-gradient(135deg, #3a3a3a, #2a2a2a);
+            color: #888;
+        }
+
+        .message-area {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 20px 30px;
+            margin-bottom: 30px;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 1.1em;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .message-area.success {
+            background: rgba(0, 212, 255, 0.1);
+            border-color: rgba(0, 212, 255, 0.3);
+            color: #00d4ff;
+        }
+
+        .message-area.warning {
+            background: rgba(255, 193, 7, 0.1);
+            border-color: rgba(255, 193, 7, 0.3);
+            color: #ffc107;
+        }
+
+        .message-area.error {
+            background: rgba(244, 67, 54, 0.1);
+            border-color: rgba(244, 67, 54, 0.3);
+            color: #f44336;
+        }
+
+        .reset-btn {
+            display: block;
+            margin: 0 auto;
+            padding: 15px 40px;
+            background: linear-gradient(135deg, #f44336, #d32f2f);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .reset-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(244, 67, 54, 0.4);
+        }
+
+        .indicator-light {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #333;
+            margin-left: 15px;
+            transition: all 0.3s ease;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
+        }
+
+        .indicator-light.on {
+            background: #00ff00;
+            box-shadow: 0 0 20px #00ff00, inset 0 2px 5px rgba(255, 255, 255, 0.3);
+        }
+
+        .door-visual {
+            width: 100%;
+            height: 80px;
+            background: linear-gradient(180deg, #4a4a4a, #2a2a2a);
+            border-radius: 10px;
+            margin-bottom: 15px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.5s ease;
+        }
+
+        .door-visual.open {
+            background: linear-gradient(180deg, #1a3a1a, #0a2a0a);
+        }
+
+        .door-visual::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60%;
+            height: 4px;
+            background: #666;
+            border-radius: 2px;
+            transition: all 0.5s ease;
+        }
+
+        .door-visual.open::after {
+            background: #00ff00;
+            box-shadow: 0 0 10px #00ff00;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .experiment-active .module-icon {
+            animation: pulse 1s infinite;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8em;
+            }
+            
+            .lab-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Лаборатория Будущего</h1>
+        <p class="subtitle">Система управления экспериментом</p>
+
+        <div class="message-area" id="messageArea">
+            Добро пожаловать в лабораторию. Начните с включения генератора.
+        </div>
+
+        <div class="lab-grid">
+            <!-- Генератор -->
+            <div class="module" id="generatorModule">
+                <div class="module-header">
+                    <div class="module-icon">⚡</div>
+                    <div>
+                        <div class="module-title">Генератор</div>
+                        <div class="module-status" id="generatorStatus">ВЫКЛЮЧЕН</div>
+                    </div>
+                </div>
+                <button class="control-btn btn-off" id="generatorBtn">Включить</button>
+            </div>
+
+            <!-- Панель управления -->
+            <div class="module locked" id="panelModule">
+                <div class="module-header">
+                    <div class="module-icon">🎛️</div>
+                    <div>
+                        <div class="module-title">Панель управления</div>
+                        <div class="module-status" id="panelStatus">ЗАБЛОКИРОВАНА</div>
+                    </div>
+                </div>
+                <button class="control-btn btn-off" id="panelBtn" disabled>Активировать</button>
+            </div>
+
+            <!-- Охлаждающая система -->
+            <div class="module locked" id="coolingModule">
+                <div class="module-header">
+                    <div class="module-icon">❄️</div>
+                    <div>
+                        <div class="module-title">Охлаждение</div>
+                        <div class="module-status" id="coolingStatus">ВЫКЛЮЧЕНО</div>
+                    </div>
+                </div>
+                <button class="control-btn btn-off" id="coolingBtn" disabled>Включить</button>
+            </div>
+
+            <!-- Дверь лаборатории -->
+            <div class="module locked" id="doorModule">
+                <div class="module-header">
+                    <div class="module-icon">🚪</div>
+                    <div>
+                        <div class="module-title">Дверь лаборатории</div>
+                        <div class="module-status" id="doorStatus">ЗАКРЫТА</div>
+                    </div>
+                </div>
+                <div class="door-visual" id="doorVisual"></div>
+                <button class="control-btn btn-off" id="doorBtn" disabled>Открыть</button>
+            </div>
+
+            <!-- Экспериментальная установка -->
+            <div class="module locked" id="experimentModule">
+                <div class="module-header">
+                    <div class="module-icon">🔬</div>
+                    <div>
+                        <div class="module-title">Эксперимент</div>
+                        <div class="module-status" id="experimentStatus">НЕАКТИВНА</div>
+                    </div>
+                    <div class="indicator-light" id="experimentIndicator"></div>
+                </div>
+                <button class="control-btn btn-off" id="experimentBtn" disabled>Активировать</button>
+            </div>
+        </div>
+
+        <button class="reset-btn" id="resetBtn">Начать заново</button>
+    </div>
+
+    <script>
+        // Состояния системы
+        const state = {
+            generator: false,
+            panel: false,
+            cooling: false,
+            door: false,
+            experiment: false,
+            indicator: false
+        };
+
+        // Элементы DOM
+        const elements = {
+            generatorBtn: document.getElementById('generatorBtn'),
+            generatorStatus: document.getElementById('generatorStatus'),
+            generatorModule: document.getElementById('generatorModule'),
+            
+            panelBtn: document.getElementById('panelBtn'),
+            panelStatus: document.getElementById('panelStatus'),
+            panelModule: document.getElementById('panelModule'),
+            
+            coolingBtn: document.getElementById('coolingBtn'),
+            coolingStatus: document.getElementById('coolingStatus'),
+            coolingModule: document.getElementById('coolingModule'),
+            
+            doorBtn: document.getElementById('doorBtn'),
+            doorStatus: document.getElementById('doorStatus'),
+            doorModule: document.getElementById('doorModule'),
+            doorVisual: document.getElementById('doorVisual'),
+            
+            experimentBtn: document.getElementById('experimentBtn'),
+            experimentStatus: document.getElementById('experimentStatus'),
+            experimentModule: document.getElementById('experimentModule'),
+            experimentIndicator: document.getElementById('experimentIndicator'),
+            
+            messageArea: document.getElementById('messageArea'),
+            resetBtn: document.getElementById('resetBtn')
+        };
+
+        // Функция для показа сообщений
+        function showMessage(text, type = 'normal') {
+            elements.messageArea.textContent = text;
+            elements.messageArea.className = 'message-area';
+            if (type === 'success') {
+                elements.messageArea.classList.add('success');
+            } else if (type === 'warning') {
+                elements.messageArea.classList.add('warning');
+            } else if (type === 'error') {
+                elements.messageArea.classList.add('error');
+            }
+        }
+
+        // Обновление интерфейса
+        function updateUI() {
+            // Генератор
+            if (state.generator) {
+                elements.generatorBtn.textContent = 'Включён';
+                elements.generatorBtn.className = 'control-btn btn-on';
+                elements.generatorStatus.textContent = 'ВКЛЮЧЁН';
+                elements.generatorModule.classList.add('active');
+            } else {
+                elements.generatorBtn.textContent = 'Включить';
+                elements.generatorBtn.className = 'control-btn btn-off';
+                elements.generatorStatus.textContent = 'ВЫКЛЮЧЕН';
+                elements.generatorModule.classList.remove('active');
+            }
+
+            // Панель управления
+            if (state.panel) {
+                elements.panelBtn.textContent = 'Активна';
+                elements.panelBtn.className = 'control-btn btn-on';
+                elements.panelBtn.disabled = true;
+                elements.panelStatus.textContent = 'АКТИВНА';
+                elements.panelModule.classList.remove('locked');
+                elements.panelModule.classList.add('active');
+            } else {
+                elements.panelBtn.textContent = 'Активировать';
+                elements.panelBtn.className = 'control-btn btn-off';
+                elements.panelBtn.disabled = !state.generator;
+                elements.panelStatus.textContent = state.generator ? 'ДОСТУПНА' : 'ЗАБЛОКИРОВАНА';
+                elements.panelModule.classList.toggle('locked', !state.generator);
+                elements.panelModule.classList.remove('active');
+            }
+
+            // Охлаждение
+            if (state.cooling) {
+                elements.coolingBtn.textContent = 'Включено';
+                elements.coolingBtn.className = 'control-btn btn-on';
+                elements.coolingBtn.disabled = true;
+                elements.coolingStatus.textContent = 'ВКЛЮЧЕНО';
+                elements.coolingModule.classList.remove('locked');
+                elements.coolingModule.classList.add('active');
+            } else {
+                elements.coolingBtn.textContent = 'Включить';
+                elements.coolingBtn.className = 'control-btn btn-off';
+                elements.coolingBtn.disabled = !state.panel;
+                elements.coolingStatus.textContent = state.panel ? 'ДОСТУПНО' : 'ЗАБЛОКИРОВАНО';
+                elements.coolingModule.classList.toggle('locked', !state.panel);
+                elements.coolingModule.classList.remove('active');
+            }
+
+            // Дверь
+            if (state.door) {
+                elements.doorBtn.textContent = 'Открыта';
+                elements.doorBtn.className = 'control-btn btn-on';
+                elements.doorBtn.disabled = true;
+                elements.doorStatus.textContent = 'ОТКРЫТА';
+                elements.doorModule.classList.remove('locked');
+                elements.doorModule.classList.add('active');
+                elements.doorVisual.classList.add('open');
+            } else {
+                elements.doorBtn.textContent = 'Открыть';
+                elements.doorBtn.className = 'control-btn btn-off';
+                const canOpen = state.generator && state.panel && state.cooling;
+                elements.doorBtn.disabled = !canOpen;
+                elements.doorStatus.textContent = canOpen ? 'ДОСТУПНА' : 'ЗАКРЫТА';
+                elements.doorModule.classList.toggle('locked', !canOpen);
+                elements.doorModule.classList.remove('active');
+                elements.doorVisual.classList.remove('open');
+            }
+
+            // Эксперимент
+            if (state.experiment) {
+                elements.experimentBtn.textContent = 'Активна';
+                elements.experimentBtn.className = 'control-btn btn-on';
+                elements.experimentBtn.disabled = true;
+                elements.experimentStatus.textContent = 'АКТИВНА';
+                elements.experimentModule.classList.remove('locked');
+                elements.experimentModule.classList.add('active', 'experiment-active');
+                elements.experimentIndicator.classList.add('on');
+            } else {
+                elements.experimentBtn.textContent = 'Активировать';
+                elements.experimentBtn.className = 'control-btn btn-off';
+                elements.experimentBtn.disabled = !state.door;
+                elements.experimentStatus.textContent = state.door ? 'ДОСТУПНА' : 'НЕАКТИВНА';
+                elements.experimentModule.classList.toggle('locked', !state.door);
+                elements.experimentModule.classList.remove('active', 'experiment-active');
+                elements.experimentIndicator.classList.remove('on');
+            }
+        }
+
+        // Обработчики событий
+        elements.generatorBtn.addEventListener('click', () => {
+            if (!state.generator) {
+                state.generator = true;
+                showMessage('Генератор запущен. Панель управления разблокирована.', 'success');
+                updateUI();
+            }
+        });
+
+        elements.panelBtn.addEventListener('click', () => {
+            if (!state.generator) {
+                showMessage('Сначала запустите генератор.', 'error');
+                return;
+            }
+            if (!state.panel) {
+                state.panel = true;
+                showMessage('Панель управления активирована. Теперь можно включить охлаждение.', 'success');
+                updateUI();
+            }
+        });
+
+        elements.coolingBtn.addEventListener('click', () => {
+            if (!state.panel) {
+                showMessage('Сначала активируйте панель управления.', 'error');
+                return;
+            }
+            if (!state.cooling) {
+                state.cooling = true;
+                showMessage('Охлаждающая система включена. Проверьте условия для открытия двери.', 'success');
+                updateUI();
+            }
+        });
+
+        elements.doorBtn.addEventListener('click', () => {
+            if (!state.generator || !state.panel || !state.cooling) {
+                const missing = [];
+                if (!state.generator) missing.push('генератор');
+                if (!state.panel) missing.push('панель управления');
+                if (!state.cooling) missing.push('охлаждающую систему');
+                showMessage(`Сначала выполните следующие условия: ${missing.join(', ')}.`, 'error');
+                return;
+            }
+            if (!state.door) {
+                state.door = true;
+                showMessage('Дверь открыта. Экспериментальная установка доступна.', 'success');
+                updateUI();
+            }
+        });
+
+        elements.experimentBtn.addEventListener('click', () => {
+            if (!state.door) {
+                showMessage('Сначала откройте дверь лаборатории.', 'error');
+                return;
+            }
+            if (!state.experiment) {
+                state.experiment = true;
+                state.indicator = true;
+                showMessage('🎉 Эксперимент запущен! Все системы работают нормально.', 'success');
+                updateUI();
+            }
+        });
+
+        elements.resetBtn.addEventListener('click', () => {
+            state.generator = false;
+            state.panel = false;
+            state.cooling = false;
+            state.door = false;
+            state.experiment = false;
+            state.indicator = false;
+            showMessage('Система сброшена. Начните с включения генератора.', 'normal');
+            updateUI();
+        });
+
+        // Инициализация
+        updateUI();
+    </script>
+</body>
+</html>
+```
